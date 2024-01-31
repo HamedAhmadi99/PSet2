@@ -9,22 +9,156 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+library(tidyverse)
 ```
 
-## Including Plots
+Question 2: 
 
-You can also embed plots, for example:
+```{r}
+gspace = read_csv('greenspace_data_share.csv') # Fix: enclosed the file name in quotes
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+table = gspace |>
+  group_by(Major_Geo_Region) |>
+  summarize(                                    
+    obs = n(),
+    avg = mean(annual_avg_2020, na.rm = TRUE), #Fix: corrected the variable name, removed NA values
+    weighted_avg = mean(annual_weight_avg_2020, na.rm = TRUE) # Fix: removed space in 'weighted avg', removed NA values
+  )
+
+
+knitr::kable(table, digits = 1) # Fix: knitr library loaded, replaced gspace with table
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Question 3: 
+
+```{r}
+ #Number of urban area
+
+gspace |> 
+  distinct(City) |> 
+  count()
+```
+
+
+Question 4:
+
+```{r}
+# Summary table for the indicator_2021 variable
+
+ndvi_freq_2021 = gspace |>
+  filter(!is.na(indicator_2021)) |>
+  count(indicator_2021) |>
+  mutate(Percentage = n / sum(n) * 100)
+
+knitr::kable(ndvi_freq_2021, caption = "Frequency of NDVI Classification Levels for Urban Areas in 2021")
+```
+
+In 2021, the majority of urban areas (73.2%) displayed poor score, with 100 areas rated exceptionally low, 265 very low, and 394 low in NDVI classification. Meanwhile, 215 areas were moderate, 62 high, and a single area was exceptionally high.
+
+
+
+
+Question 5:
+```{r}
+
+#Scored High or above for green space in 2015
+
+high_greenspace_2015 = gspace |>
+  filter(indicator_2015 %in% c("High", "Very High", "Exceptionally High")) |>
+  summarize(count = n())
+print(high_greenspace_2015)
+
+
+#Scored Exceptionally Low at any point in the years covered
+
+exceptionally_low_any = gspace |>
+  filter(indicator_2010 == "Exceptionally Low" | indicator_2015 == "Exceptionally Low" | indicator_2020 == "Exceptionally Low" | indicator_2021 == "Exceptionally Low") |>
+  summarize(count = n())
+print(exceptionally_low_any)
+
+#Urban areas in arid climate that became greener from 2010 to 2020
+
+arid_greener_areas = gspace |>
+  filter(Climate_region == "Arid") |> 
+  mutate(greener = annual_weight_avg_2020 > annual_weight_avg_2010) |> 
+  filter(greener == TRUE) |> 
+  summarize(count = n()) 
+print(arid_greener_areas)
+```
+
+Question 6: 
+
+```{r}
+
+#Number of urban areas became less green from 2010 to 2021
+
+gspace_change = gspace |>
+  mutate(change_in_greenspace = annual_avg_2021 - annual_avg_2010)
+
+less_green_areas <- gspace_change |>
+  filter(change_in_greenspace < 0)
+nrow(less_green_areas)
+
+
+#concentration in climate region
+
+change_by_region = less_green_areas |>
+  group_by(Major_Geo_Region) |>
+  summarize(count = n(), average_change = mean(change_in_greenspace))
+
+knitr::kable(change_by_region, caption = "change by region")
+
+```
+These changes are primarily concentrated in Europe, affecting 47 urban areas, followed by Asia with 35 areas, and Africa with 25 areas. Latin America and the Caribbean, along with North America, exhibited the lowest concentration of change, with 12 and 9 areas affected respectively. Moreover, Europe experienced the largest average change in urban greenery (-0.0408), while Latin America and the Caribbean has the lowest (-0.0151).
+
+Question 7:
+
+```{r}
+
+#histogram showing the change in greenspace
+
+ggplot(gspace_change, aes(x = change_in_greenspace)) +
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") +
+  labs(title = "Distribution of Change in Greenspace from 2010 to 2021",
+       x = "Change in Greenspace (NDVI)",
+       y = "Number of Urban Areas") +
+  theme_minimal()
+```
+
+
+Question 8:
+
+```{r}
+
+#scatter plot of population weighted green space in 2021 over the green space in 2010
+
+gspace <- gspace %>%
+  mutate(greenspace_change_category = if_else(annual_weight_avg_2021 > annual_weight_avg_2010, "Added", "Lost"))
+
+
+ggplot(gspace, aes(x = annual_weight_avg_2010, y = annual_weight_avg_2021, color = greenspace_change_category)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue") +
+  labs(title = "Population Weighted Greenspace in 2021 vs 2010",
+       x = "Population Weighted Greenspace in 2010",
+       y = "Population Weighted Greenspace in 2021") +
+  theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
